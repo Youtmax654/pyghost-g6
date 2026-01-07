@@ -5,16 +5,22 @@ Handles async TCP communication with the server.
 import asyncio
 import threading
 from enum import IntEnum
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Tuple
 from protocol import (
     OpCode, encode_message, decode_header, decode_packet,
-    encode_login_req, decode_login_resp, decode_room_list, RoomInfo
+    encode_login_req, decode_login_resp, decode_room_list, 
+    encode_join_req, decode_room_resp, decode_notify, RoomInfo
 )
 
 
 class LoginStatus(IntEnum):
     OK = 0x00
     REFUSED = 0x01
+
+
+class NotifyType(IntEnum):
+    JOIN = 0x00
+    LEAVE = 0x01
 
 
 class NetworkClient:
@@ -31,6 +37,8 @@ class NetworkClient:
         # Callbacks
         self.on_login_response: Optional[Callable[[LoginStatus], None]] = None
         self.on_room_list: Optional[Callable[[List[RoomInfo]], None]] = None
+        self.on_room_joined: Optional[Callable[[List[str]], None]] = None
+        self.on_notify: Optional[Callable[[NotifyType, str], None]] = None
         self.on_disconnected: Optional[Callable[[], None]] = None
     
     def start(self):
@@ -80,8 +88,15 @@ class NetworkClient:
             rooms = decode_room_list(payload)
             if self.on_room_list:
                 self.on_room_list(rooms)
+        elif opcode == OpCode.RESP_ROOM:
+            players = decode_room_resp(payload)
+            if self.on_room_joined:
+                self.on_room_joined(players)
+        elif opcode == OpCode.NOTIFY:
+            notify_type, pseudo = decode_notify(payload)
+            if self.on_notify:
+                self.on_notify(NotifyType(notify_type), pseudo)
         elif opcode == OpCode.PING:
-            # Respond with PONG
             self._send_sync(OpCode.PONG, b'')
     
     def _send_sync(self, opcode: int, payload: bytes):
@@ -102,6 +117,11 @@ class NetworkClient:
         """Send login request."""
         payload = encode_login_req(pseudo)
         self._send_sync(OpCode.REQ_LOGIN, payload)
+    
+    def join_room(self, room_id: int):
+        """Send join room request."""
+        payload = encode_join_req(room_id)
+        self._send_sync(OpCode.REQ_JOIN, payload)
     
     def close(self):
         """Close the connection."""

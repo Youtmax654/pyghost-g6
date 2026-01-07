@@ -89,6 +89,11 @@ Structure générique du Payload :
 - Format de la réponse : `[Size (4 bytes BE)] [OpCode (1 byte)][NbPlayers (1o)] + N * [LenPseudo(1o) + Pseudo]`
 - Description : Liste des joueurs présents dans la room rejointe.
 
+**C -> S : REQ_LEAVE (0x06)**
+- Format de la requête : `[Size (4 bytes BE)] [OpCode (1 byte)]`
+- Payload vide.
+- Description : Demande pour quitter la room courante. Le serveur envoie ensuite un `ROOM_LIST` mis à jour.
+
 **S -> C : NOTIFY (0x07)**
 - Format de la réponse : `[Size (4 bytes BE)] [OpCode (1 byte)][Type (1o)] + [LenPseudo(1o) + Pseudo]`
 - Type :
@@ -146,5 +151,22 @@ sequenceDiagram
         S->>O: [LEN][0x07][JOIN]["Alice"] (NOTIFY)
     and Réponse
         S->>C: [LEN][0x04][Joueurs...] (RESP_ROOM)
+    end
+```
+
+### Quitter une Room
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Serveur
+    participant O as Autres Joueurs
+
+    C->>S: [LEN][0x06] (REQ_LEAVE)
+    S->>S: Retire Client de Room
+    par Notification
+        S->>O: [LEN][0x07][LEAVE]["Alice"] (NOTIFY)
+    and Réponse
+        S->>C: [LEN][0x05][List...] (ROOM_LIST)
     end
 ```
