@@ -4,7 +4,8 @@ Handles client connections, login, and room management.
 """
 import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
+from datetime import datetime
+from typing import Callable, Dict, List, Optional, Set
 from protocol import (
     OpCode, encode_message, decode_header, decode_packet,
     decode_login_req, encode_login_resp, encode_room_list,
@@ -45,6 +46,11 @@ class ClientSession:
         self.pseudo: Optional[str] = None
         self.current_room: Optional[Room] = None
         self.addr = writer.get_extra_info('peername')
+        self.last_message: datetime = datetime.now()
+    
+    def update_last_message(self):
+        """Update the last message timestamp."""
+        self.last_message = datetime.now()
     
     async def send(self, opcode: int, payload: bytes = b''):
         """Send a message to this client."""
@@ -60,8 +66,10 @@ class GhostServer:
         self.host = host
         self.port = port
         self.clients: Dict[str, ClientSession] = {}  # pseudo -> session
+        self.all_sessions: List[ClientSession] = []  # all connected sessions
         self.rooms: Dict[int, Room] = {}  # room_id -> room
         self.server: Optional[asyncio.Server] = None
+        self.on_clients_changed: Optional[Callable[[], None]] = None
         
         # Create hardcoded rooms
         self._create_rooms()
@@ -86,6 +94,11 @@ class GhostServer:
         async with self.server:
             await self.server.serve_forever()
     
+    def _notify_clients_changed(self):
+        """Notify that clients list has changed."""
+        if self.on_clients_changed:
+            self.on_clients_changed()
+    
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """Handle a new client connection."""
         session = ClientSession(reader, writer)
@@ -101,7 +114,9 @@ class GhostServer:
                 body = await reader.readexactly(msg_size)
                 opcode, payload = decode_packet(body)
                 
+                session.update_last_message()
                 await self._handle_message(session, opcode, payload)
+                self._notify_clients_changed()
                 
         except asyncio.IncompleteReadError:
             print(f"Client disconnected: {session.addr}")
@@ -130,6 +145,12 @@ class GhostServer:
         # Remove from clients
         if session.pseudo and session.pseudo in self.clients:
             del self.clients[session.pseudo]
+        
+        # Remove from all_sessions
+        if session in self.all_sessions:
+            self.all_sessions.remove(session)
+        
+        self._notify_clients_changed()
     
     async def _handle_message(self, session: ClientSession, opcode: int, payload: bytes):
         """Process a received message."""
@@ -158,9 +179,11 @@ class GhostServer:
         # Accept login
         session.pseudo = pseudo
         self.clients[pseudo] = session
+        self.all_sessions.append(session)
         
         await session.send(OpCode.RESP_LOGIN, encode_login_resp(0x00))
         print(f"Login accepted for '{pseudo}'")
+        self._notify_clients_changed()
         
         # Send room list
         await self._send_room_list(session)
