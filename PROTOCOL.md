@@ -170,3 +170,82 @@ sequenceDiagram
         S->>C: [LEN][0x05][List...] (ROOM_LIST)
     end
 ```
+
+---
+
+## Protocole de Jeu (Couche Application)
+
+Les messages de jeu sont transportés via l'OpCode `DATA` (0x08).
+Le payload est une chaîne JSON encodée en UTF-8.
+
+### Structure JSON
+
+Chaque message contient un champ `type` et d'autres champs spécifiques.
+
+#### 1. GAME_START (S -> C)
+Indique le début d'une nouvelle partie.
+```json
+{
+  "type": "GAME_START",
+  "players": ["Alice", "Bob"],
+  "current_turn": "Alice"
+}
+```
+
+#### 2. GAME_STATE (S -> C)
+Envoie l'état actuel du jeu (envoyé après chaque action).
+```json
+{
+  "type": "GAME_STATE",
+  "fragment": "BO",
+  "current_turn": "Bob",
+  "scores": {"Alice": 0, "Bob": 1},  // Nombre de lettres GHOST
+  "eliminated": []
+}
+```
+
+#### 3. PLAY_LETTER (C -> S)
+Jouer une lettre.
+```json
+{
+  "type": "PLAY_LETTER",
+  "letter": "L"
+}
+```
+
+#### 4. CHALLENGE (C -> S)
+Challenger le joueur précédent.
+```json
+{
+  "type": "CHALLENGE"
+}
+```
+
+#### 5. CHALLENGE_RESPONSE (C -> S)
+Répondre à un challenge avec un mot valide.
+```json
+{
+  "type": "CHALLENGE_RESPONSE",
+  "word": "BOLIDE"
+}
+```
+
+#### 6. ROUND_END (S -> C)
+Fin d'une manche.
+```json
+{
+  "type": "ROUND_END",
+  "loser": "Bob",
+  "reason": "WORD_COMPLETED",  // ou "BAD_CHALLENGE", "NO_WORD_FOUND"
+  "word": "BOL"               // Optionnel
+}
+```
+
+#### 7. GAME_OVER (S -> C)
+Fin de la partie (un seul survivant).
+```json
+{
+  "type": "GAME_OVER",
+  "winner": "Alice"
+}
+```

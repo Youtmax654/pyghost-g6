@@ -1,123 +1,70 @@
 import unittest
+import struct
 import sys
 import os
-import struct
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from protocol import (
-    OpCode, ProtocolError, RoomInfo,
-    encode_message, decode_header, decode_packet,
-    encode_login_req, decode_login_req,
-    encode_login_resp, decode_login_resp,
-    encode_room_list, decode_room_list,
-    encode_join_req, decode_join_req,
-    encode_room_resp, decode_room_resp,
-    encode_notify, decode_notify,
-    encode_error, decode_error,
-    encode_leave_req, encode_data, decode_data
-)
+from common import protocol
 
 class TestProtocol(unittest.TestCase):
-    
-    def test_header_and_packet_framing(self):
-        # Test generic message construction
-        payload = b'\x01\x02\x03'
-        opcode = OpCode.REQ_LOGIN # Just using an opcode
+    def test_pack_simple(self):
+        opcode = protocol.REQ_LOGIN
+        payload = b"TestUser"
+        packed = protocol.pack_message(opcode, payload)
         
-        # Encode
-        full_msg = encode_message(opcode, payload)
+        # Check total length
+        # Size (4) + OpCode (1) + Payload (8) = 13 bytes
+        expected_len = 1 + len(payload)
+        self.assertEqual(len(packed), 4 + expected_len)
         
-        # Check size
-        # Size = 1 (OpCode) + 3 (Payload) = 4
-        # Header = 4 bytes BE of 4 -> 00 00 00 04
-        # Body = 01 (OpCode) + 01 02 03
-        expected_size = 4
-        expected_header = b'\x00\x00\x00\x04'
-        self.assertEqual(full_msg[:4], expected_header)
-        self.assertEqual(full_msg[4], 1) # OpCode
-        self.assertEqual(full_msg[5:], payload)
+        # Check header
+        size_unpacked = struct.unpack('!I', packed[:4])[0]
+        self.assertEqual(size_unpacked, expected_len)
         
-        # Decode Header
-        size = decode_header(full_msg[:4])
-        self.assertEqual(size, 4)
+        # Check OpCode
+        self.assertEqual(packed[4], opcode)
         
-        # Decode Packet
-        decoded_op, decoded_payload = decode_packet(full_msg[4:])
-        self.assertEqual(decoded_op, opcode)
-        self.assertEqual(decoded_payload, payload)
+        # Check Payload
+        self.assertEqual(packed[5:], payload)
 
-    def test_login(self):
-        pseudo = "Alice"
-        encoded = encode_login_req(pseudo)
-        decoded = decode_login_req(encoded)
-        self.assertEqual(decoded, pseudo)
-        
-        status = 0
-        encoded_resp = encode_login_resp(status)
-        decoded_resp = decode_login_resp(encoded_resp)
-        self.assertEqual(decoded_resp, 0)
-        
-    def test_room_list(self):
-        rooms = [
-            RoomInfo(room_id=1, name="Room A", players=2, max_players=4),
-            RoomInfo(room_id=1024, name="Room B", players=0, max_players=8)
-        ]
-        
-        encoded = encode_room_list(rooms)
-        
-        # Manual check of encoded bytes for first room
-        # [NbRooms=2]
-        self.assertEqual(encoded[0], 2)
-        # Room A: ID(1)=00000001, LenName(6), "Room A", P(2), M(4)
-        offset = 1
-        self.assertEqual(encoded[offset:offset+4], b'\x00\x00\x00\x01')
-        offset += 4
-        self.assertEqual(encoded[offset], 6)
-        offset += 1
-        self.assertEqual(encoded[offset:offset+6], b'Room A')
-        offset += 6
-        self.assertEqual(encoded[offset], 2)
-        self.assertEqual(encoded[offset+1], 4)
-        
-        decoded = decode_room_list(encoded)
-        self.assertEqual(len(decoded), 2)
-        self.assertEqual(decoded[0].name, "Room A")
-        self.assertEqual(decoded[1].room_id, 1024)
+    def test_unpack_header(self):
+        data = struct.pack('!I', 42)
+        size = protocol.unpack_header(data)
+        self.assertEqual(size, 42)
 
-    def test_join_room(self):
-        rid = 123456
-        encoded = encode_join_req(rid)
-        self.assertEqual(encoded, b'\x00\x01\xe2\x40') # 123456 in hex is 1E240
-        decoded = decode_join_req(encoded)
-        self.assertEqual(decoded, rid)
-
-    def test_room_resp(self):
-        players = ["Alice", "Bob"]
-        encoded = encode_room_resp(players)
-        decoded = decode_room_resp(encoded)
-        self.assertEqual(decoded, players)
-
-    def test_notify(self):
-        # Type 0x00 (JOIN), Pseudo "Bob"
-        encoded = encode_notify(0x00, "Bob")
-        # Payload: Type(1) + Len(1) + Pseudo
-        self.assertEqual(encoded[0], 0x00)
-        self.assertEqual(encoded[1], 3)
-        self.assertEqual(encoded[2:], b'Bob')
+    def test_parse_packet(self):
+        opcode = protocol.DATA
+        payload = b'{"type":"GAME_START"}'
+        data = struct.pack('B', opcode) + payload
         
-        t, p = decode_notify(encoded)
-        self.assertEqual(t, 0x00)
-        self.assertEqual(p, "Bob")
+        op, py = protocol.parse_packet(data)
+        self.assertEqual(op, opcode)
+        self.assertEqual(py, payload)
 
-    def test_error(self):
-        code = 0xFF
-        msg = "Fatal Error"
-        encoded = encode_error(code, msg)
-        c, m = decode_error(encoded)
-        self.assertEqual(c, code)
-        self.assertEqual(m, msg)
+    def test_pack_utf8_string(self):
+        # pack_message handles strings by encoding them
+        opcode = protocol.REQ_LOGIN
+        payload = "Héllo"
+        packed = protocol.pack_message(opcode, payload)
+        
+        expected_payload = payload.encode('utf-8')
+        self.assertEqual(packed[5:], expected_payload)
+        
+    def test_pack_json_dict(self):
+        opcode = protocol.DATA
+        payload = {"foo": "bar"}
+        packed = protocol.pack_message(opcode, payload)
+        
+        # Should be json dumped and encoded
+        expected_payload = b'{"foo": "bar"}' # Default separators may vary, but let's check
+        # json.dumps defaults to (', ', ': ')
+        # Let's decode to check semantic equality
+        op, res_payload = protocol.parse_packet(packed[4:])
+        import json
+        decoded = json.loads(res_payload.decode('utf-8'))
+        self.assertEqual(decoded, payload)
 
 if __name__ == '__main__':
     unittest.main()

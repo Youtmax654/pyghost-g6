@@ -1,61 +1,38 @@
-# Pyghost app
+# Ghost Game - Python Client/Server
 
-## Run the app
+## Installation
 
-### uv
+1. Install Python 3.10+
+2. Install Flet:
+   ```bash
+   uv add "flet[all]"
+   ```
 
-Run as a desktop app:
+## Usage
 
-```
-uv run flet run
-```
-
-Run as a web app:
-
-```
-uv run flet run --web
-```
-
-For more details on running the app, refer to the [Getting Started Guide](https://docs.flet.dev/).
-
-## Build the app
-
-### Android
-
-```
-flet build apk -v
+### Server
+Run the server first. It will start the TCP server on port 5000 and the Admin Dashboard.
+```bash
+python3 server/main.py
 ```
 
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://docs.flet.dev/publish/android/).
-
-### iOS
-
-```
-flet build ipa -v
+### Client
+Run the client (you can run multiple instances).
+```bash
+python3 client/main.py
 ```
 
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://docs.flet.dev/publish/ios/).
+## Features Implemented
+- **Protocol**: Custom binary protocol (Big-Endian) with OpCodes.
+- **Login/Rooms**: Unique pseudo check, Room listing and joining.
+- **Game Logic**: Ghost game rules (Fragments, Dictionary check, Challenge).
+- **Admin**: Flet Dashboard with Kick and Broadcast.
+- **Bonuses**:
+  - Heartbeat (PING/PONG) with timeout.
+  - Load Balancer limit (5 clients).
+  - Room List feature.
 
-### macOS
-
-```
-flet build macos -v
-```
-
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://docs.flet.dev/publish/macos/).
-
-### Linux
-
-```
-flet build linux -v
-```
-
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://docs.flet.dev/publish/linux/).
-
-### Windows
-
-```
-flet build windows -v
-```
-
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://docs.flet.dev/publish/windows/).
+## Architecture
+- `/common`: Shared protocol and utils.
+- `/server`: Threaded TCP Server, MVC structure (ClientHandler, RoomManager, GameState).
+- `/client`: Flet UI, NetworkManager.
