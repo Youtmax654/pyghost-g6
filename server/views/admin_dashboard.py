@@ -23,7 +23,7 @@ class AdminDashboard:
     def main_setup(self, page: ft.Page):
         # Separated setup logic to avoid re-adding widgets if main is called multiple times (though likely once)
         self.page = page
-        page.title = "Ghost Server Admin"
+        page.title = "Admin Serveur Ghost"
         page.theme_mode = ft.ThemeMode.DARK
         
         local_ip = self.get_local_ip()
@@ -33,20 +33,20 @@ class AdminDashboard:
                 ft.DataColumn(ft.Text("IP")),
                 ft.DataColumn(ft.Text("Port")),
                 ft.DataColumn(ft.Text("Pseudo")),
-                ft.DataColumn(ft.Text("Room")),
-                ft.DataColumn(ft.Text("Last Packet")),
+                ft.DataColumn(ft.Text("Salle")),
+                ft.DataColumn(ft.Text("Dernier Paquet")),
                 ft.DataColumn(ft.Text("Action")),
             ],
             rows=[]
         )
         
-        self.broadcast_input = ft.TextField(label="Broadcast Message", expand=True)
+        self.broadcast_input = ft.TextField(label="Message Diffusé", expand=True)
         
         # Confirmation Dialog
         self.confirm_dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text("Confirmation"),
-            content=ft.Text("Voulez-vous vraiment kicker cet utilisateur ?"),
+            content=ft.Text("Voulez-vous vraiment expulser cet utilisateur ?"),
             actions=[
                 ft.TextButton("Oui", on_click=self.confirm_kick),
                 ft.TextButton("Non", on_click=self.cancel_kick),
@@ -62,12 +62,12 @@ class AdminDashboard:
                 page.update()
 
         page.add(
-            ft.Text("Ghost Server Status", size=30, weight="bold"),
+            ft.Text("Statut Serveur Ghost", size=30, weight="bold"),
             ft.Container(
                 content=ft.Column([
                     ft.Text(f"Server IP: {local_ip}", size=20, color=ft.Colors.GREEN),
                     ft.Text(f"Port: 5000", size=20, color=ft.Colors.GREEN),
-                    ft.Text("Share this IP with clients so they can connect.", size=12, color=ft.Colors.GREY),
+                    ft.Text("Partagez cette IP avec les clients pour qu'ils se connectent.", size=12, color=ft.Colors.GREY),
                 ]),
                 padding=10,
                 border=ft.border.all(1, ft.Colors.GREEN_900),
@@ -75,9 +75,9 @@ class AdminDashboard:
                 bgcolor=ft.Colors.BLACK54
             ),
             ft.Divider(),
-            ft.Row([self.broadcast_input, ft.ElevatedButton("Send", on_click=send_broadcast)]),
+            ft.Row([self.broadcast_input, ft.ElevatedButton("Envoyer", on_click=send_broadcast)]),
             ft.Divider(),
-            ft.Text("Connected Clients"),
+            ft.Text("Clients Connectés"),
             self.client_list
         )
         
@@ -108,7 +108,7 @@ class AdminDashboard:
         for c in clients:
             # Story #10: Kick
             kick_btn = ft.ElevatedButton(
-                "Kick", 
+                "Ejecter", 
                 on_click=lambda e, client=c: self.prepare_kick(client),
                 bgcolor=ft.Colors.RED, color=ft.Colors.WHITE
             )
@@ -116,9 +116,9 @@ class AdminDashboard:
             rows.append(ft.DataRow(cells=[
                 ft.DataCell(ft.Text(c.addr[0])),
                 ft.DataCell(ft.Text(str(c.addr[1]))),
-                ft.DataCell(ft.Text(c.pseudo or "Guest")),
+                ft.DataCell(ft.Text(c.pseudo or "Invité")),
                 ft.DataCell(ft.Text(c.current_room.name if c.current_room else "-")),
-                ft.DataCell(ft.Text(f"{time.time() - c.last_packet:.1f}s ago")),
+                ft.DataCell(ft.Text(f"il y a {time.time() - c.last_packet:.1f}s")),
                 ft.DataCell(kick_btn),
             ]))
         
@@ -142,7 +142,7 @@ class AdminDashboard:
             print(f"Kicking {self.client_to_kick.pseudo}")
             # Story #10: Message aux autres clients
             pseudo = self.client_to_kick.pseudo or "Un invité"
-            self.server.broadcast_admin_message(f"{pseudo} a été kické")
+            self.server.broadcast_admin_message(f"{pseudo} a été expulsé")
             
             self.client_to_kick.disconnect()
             self.client_to_kick = None

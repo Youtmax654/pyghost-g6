@@ -31,7 +31,7 @@ ERR_UNKNOWN = 0xFF
 
 HEADER_SIZE = 4
 
-def pack_message(opcode, payload=b'', compress=False):
+def pack_message(opcode, payload=b''):
     """
     Packs a message: [Size (4 bytes)] + [OpCode (1 byte)] + [Payload]
     Size = 1 (OpCode) + len(Payload)
@@ -40,20 +40,6 @@ def pack_message(opcode, payload=b'', compress=False):
         payload = payload.encode('utf-8')
     elif isinstance(payload, dict) or isinstance(payload, list):
         payload = json.dumps(payload).encode('utf-8')
-    
-    # Story #B03: Compression
-    # We need to signal compression. The prompt says "add a flag in the header or use a dedicated OpCode".
-    # Or "adapter le protocole".
-    # Let's keep it simple for now and implement basic packing. 
-    # If I were to support compression, maybe use a high bit in OpCode or a modified structure.
-    # The prompt says: "si la taille > 100 octets, compresser le payload avec zlib et ajouter un flag dans le header"
-    # Current header: [Size (4)] + [OpCode (1)].
-    # Maybe we can enforce that Size is clean length, and OpCode handles meaning.
-    # But wait, "ajouter un flag dans le header".
-    # I can use a magic byte or modify the size field (e.g. MSB indicates compression). 
-    # But strict "Big-Endian (!) pour les nombres binaires" suggests standard integer.
-    # Let's stick to the prompt's main part first. I will handle compression if asked or as a bonus later.
-    # For now, standard pack.
 
     msg_len = 1 + len(payload) # OpCode + Payload
     header = struct.pack('!I', msg_len) # Big-Endian Unsigned Int

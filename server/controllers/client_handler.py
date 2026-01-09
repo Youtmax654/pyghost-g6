@@ -85,8 +85,6 @@ class ClientHandler(threading.Thread):
             self.running = False
 
     def send_message(self, opcode, payload=b''):
-        # Story #B03: Compression Logic could go here (if > 100 bytes)
-        # For now, simple pack.
         msg = protocol.pack_message(opcode, payload)
         self.send_raw(msg)
 
@@ -124,11 +122,11 @@ class ClientHandler(threading.Thread):
                 break
         
         if not target:
-            self.send_message(protocol.ERROR, b"User not found")
+            self.send_message(protocol.ERROR, b"Utilisateur introuvable")
             return
 
         if target == self:
-            self.send_message(protocol.ERROR, b"Cannot P2P yourself")
+            self.send_message(protocol.ERROR, b"Impossible de P2P avec soi-meme")
             return
             
         # Send REQ_P2P_START to Target
@@ -174,7 +172,7 @@ class ClientHandler(threading.Thread):
         try:
             requested_pseudo = payload.decode('utf-8')
         except:
-            self.send_message(protocol.ERROR, b"Invalid encoding")
+            self.send_message(protocol.ERROR, b"Encodage invalide")
             return
 
         if self.server.is_pseudo_taken(requested_pseudo):
@@ -187,7 +185,7 @@ class ClientHandler(threading.Thread):
 
     def handle_join(self, payload):
         if not self.pseudo:
-            self.send_message(protocol.ERROR, b"Login first")
+            self.send_message(protocol.ERROR, b"Connectez-vous d'abord")
             return
         
         if len(payload) != 4:
@@ -229,8 +227,7 @@ class ClientHandler(threading.Thread):
                 # Broadcast initial game state so everyone sees "Waiting..." or current state
                 game = room.game_state
                 
-                # Story #04: Only start/allow playing if 2+ players
-                active = "Waiting..."
+                active = "En attente..."
                 if len(room.clients) >= 2:
                     active = game.get_current_player()
                 
@@ -242,9 +239,9 @@ class ClientHandler(threading.Thread):
                 }
                 self._broadcast_room_json(state)
             else:
-                self.send_message(protocol.ERROR, b"Room full")
+                self.send_message(protocol.ERROR, b"Salle pleine")
         else:
-            self.send_message(protocol.ERROR, b"Room not found")
+            self.send_message(protocol.ERROR, b"Salle introuvable")
 
     def handle_leave(self):
         if self.current_room:
@@ -258,7 +255,7 @@ class ClientHandler(threading.Thread):
                 game = self.current_room.game_state
                 
                 # Check if we should revert to waiting
-                active = "Waiting..."
+                active = "En attente..."
                 if len(self.current_room.clients) >= 2:
                      active = game.get_current_player()
 
@@ -309,14 +306,10 @@ class ClientHandler(threading.Thread):
         msg_type = data.get("type")
         game = self.current_room.game_state
         
-        # Verify Turn (Story #06)
-        # Except CHAT? Prompt says "Letter" via DATA.
-        # Story #05: "Messages de jeu (lettres) sont envoyés via OpCode DATA".
-        
         # If play letter:
         if msg_type == "PLAY_LETTER":
             if game.get_current_player() != self.pseudo:
-                self.send_message(protocol.ERROR, b"Not your turn")
+                self.send_message(protocol.ERROR, b"Ce n'est pas votre tour")
                 return
             
             letter = data.get("letter")
@@ -338,12 +331,12 @@ class ClientHandler(threading.Thread):
                 # WORD COMPLETED -> RESET
                 game.frag = ""
 
-                state["event"] = f"{self.pseudo} completed a valid word!"
+                state["event"] = f"{self.pseudo} a complete un mot valide !"
                 if punish == "ELIMINATED":
                      # game.remove_player(self.pseudo) <-- Don't just remove, end game for all
                      game_over_msg = {
                          "type": "GAME_OVER",
-                         "reason": f"{self.pseudo} reached GHOST first!"
+                         "reason": f"{self.pseudo} a atteint GHOST en premier !"
                      }
                      # Update scores one last time before ending
                      state["scores"] = game.scores
@@ -365,12 +358,12 @@ class ClientHandler(threading.Thread):
                 if len(game.frag) > 0:
                     game.frag = game.frag[:-1]
                 
-                state["event"] = f"{self.pseudo} played an invalid letter (impossible word)!"
+                state["event"] = f"{self.pseudo} a joue une lettre invalide (mot impossible) !"
                 if punish == "ELIMINATED":
                     # game.remove_player(self.pseudo)
                     game_over_msg = {
                          "type": "GAME_OVER",
-                         "reason": f"{self.pseudo} reached GHOST first!"
+                         "reason": f"{self.pseudo} a atteint GHOST en premier !"
                     }
                     state["scores"] = game.scores
                     self._broadcast_room_json(state)

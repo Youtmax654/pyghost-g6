@@ -8,7 +8,7 @@ import threading
 class GameClientApp:
     def __init__(self, page: ft.Page):
         self.page = page
-        self.page.title = "Ghost Game Client"
+        self.page.title = "Client Jeu Ghost"
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.window_width = 600
         self.page.window_height = 800
@@ -72,12 +72,12 @@ class GameClientApp:
                     self.process_event(evt_type, data)
                 await asyncio.sleep(0.1)
             except Exception as e:
-                print(f"Loop Error: {e}")
+                print(f"Erreur de boucle: {e}")
                 await asyncio.sleep(0.1)
 
     def process_event(self, evt_type, data):
         if evt_type == "CONNECT":
-            print("Connected")
+            print("Connecté")
         elif evt_type == "ERROR":
             self.show_error(data)
         elif evt_type == "LOGIN_RESP":
@@ -86,7 +86,7 @@ class GameClientApp:
                 self.show_lobby()
                 self.network.fetch_room_list()
             else:
-                self.show_error("Pseudo refused")
+                self.show_error("Pseudo refusé")
         elif evt_type == "ROOM_LIST":
             self.update_room_list(data)
         elif evt_type == "JOIN_ROOM":
@@ -98,7 +98,7 @@ class GameClientApp:
             ntype, pseudo = data
             self.handle_notify(ntype, pseudo)
         elif evt_type == "DISCONNECT":
-            self.show_error("Disconnected")
+            self.show_error("Déconnecté")
         elif evt_type == "P2P_REQ":
             self.handle_p2p_request(data)
         elif evt_type == "P2P_START":
@@ -108,7 +108,7 @@ class GameClientApp:
         self.page.update()
 
     def show_error(self, msg):
-        snack = ft.SnackBar(ft.Text(f"Error: {msg}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED)
+        snack = ft.SnackBar(ft.Text(f"Erreur: {msg}", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED)
         self.page.overlay.append(snack)
         snack.open = True
         self.page.update()
@@ -122,15 +122,15 @@ class GameClientApp:
     # --- VIEWS ---
 
     def show_connection_screen(self):
-        self.ip_input = ft.TextField(label="Server IP", value="127.0.0.1", width=200)
-        self.port_input = ft.TextField(label="Port", value="5000", width=100)
-        self.pseudo_input = ft.TextField(label="Pseudo", autofocus=True, width=200)
+        self.ip_input = ft.TextField(label="IP Serveur", value="127.0.0.1", width=200, on_submit=self.do_connect_and_login)
+        self.port_input = ft.TextField(label="Port", value="5000", width=100, on_submit=self.do_connect_and_login)
+        self.pseudo_input = ft.TextField(label="Pseudo", autofocus=True, width=200, on_submit=self.do_connect_and_login)
         
-        join_btn = ft.ElevatedButton("Connect & Play", on_click=self.do_connect_and_login, width=200)
+        join_btn = ft.ElevatedButton("Se connecter et Jouer", on_click=self.do_connect_and_login, width=200)
         
         content = ft.Column([
-            ft.Text("GHOST GAME", size=40, weight="bold", color=ft.Colors.BLUE_200),
-            ft.Text("Multiplayer Word Game", size=16, color=ft.Colors.GREY_400),
+            ft.Text("JEU GHOST", size=40, weight="bold", color=ft.Colors.BLUE_200),
+            ft.Text("Jeu de mots multijoueur", size=16, color=ft.Colors.GREY_400),
             ft.Container(height=50),
             ft.Row([self.ip_input, self.port_input], alignment=ft.MainAxisAlignment.CENTER),
             self.pseudo_input,
@@ -147,13 +147,13 @@ class GameClientApp:
         pseudo = self.pseudo_input.value
         
         if not ip or not port_str or not pseudo:
-            self.show_error("All fields are required")
+            self.show_error("Tous les champs sont requis")
             return
             
         try:
             port = int(port_str)
         except:
-            self.show_error("Invalid Port")
+            self.show_error("Port Invalide")
             return
 
         self.current_pseudo = pseudo
@@ -167,14 +167,14 @@ class GameClientApp:
             # If successful, try login
             self.network.login(pseudo)
         else:
-            self.show_error("Unable to connect to server")
+            self.show_error("Impossible de se connecter au serveur")
 
     def show_lobby(self):
         self.room_list_col = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
         refresh_btn = ft.IconButton(ft.Icons.REFRESH, on_click=lambda e: self.network.fetch_room_list())
         
         self.main_container.controls = [
-            ft.Row([ft.Text("Lobby", size=25), refresh_btn], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Row([ft.Text("Salon", size=25), refresh_btn], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(),
             self.room_list_col
         ]
@@ -184,7 +184,7 @@ class GameClientApp:
         self.room_list_col.controls.clear()
         for r in rooms:
             btn = ft.ElevatedButton(
-                "Join", 
+                "Rejoindre", 
                 on_click=lambda e, rid=r['id']: self.network.join_room(rid),
                 disabled=(r['players'] >= r['max'])
             )
@@ -192,7 +192,7 @@ class GameClientApp:
                 content=ft.Row([
                     ft.Column([
                         ft.Text(r['name'], weight="bold"),
-                        ft.Text(f"Players: {r['players']}/{r['max']}", size=12)
+                        ft.Text(f"Joueurs: {r['players']}/{r['max']}", size=12)
                     ]),
                     btn
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -207,7 +207,7 @@ class GameClientApp:
     def show_game_room(self):
         # Header
         # Header
-        self.lbl_room_info = ft.Text(f"Room: {len(self.players_in_room)} Players", size=16)
+        self.lbl_room_info = ft.Text(f"Salle: {len(self.players_in_room)} Joueurs", size=16)
         is_full = len(self.players_in_room) >= 2
         self.leave_btn = ft.IconButton(
             ft.Icons.EXIT_TO_APP, 
@@ -215,18 +215,18 @@ class GameClientApp:
             disabled=is_full
         )
         if is_full:
-            self.show_info("Room full! Game starting.")
+            self.show_info("Salle pleine ! Le jeu commence.")
         
         # Game Board
         self.word_display = ft.Text("", size=40, weight="bold", color=ft.Colors.GREEN_400, text_align="center")
-        self.status_display = ft.Text("Waiting...", size=14, color=ft.Colors.GREY)
+        self.status_display = ft.Text("En attente...", size=14, color=ft.Colors.GREY)
         
         # Controls
-        self.input_letter = ft.TextField(label="Letter", width=100, max_length=1, disabled=True)
-        self.btn_play = ft.ElevatedButton("Play", on_click=self.do_play_letter, disabled=True)
+        self.input_letter = ft.TextField(label="Lettre", width=100, max_length=1, disabled=True, on_submit=self.do_play_letter)
+        self.btn_play = ft.ElevatedButton("Jouer", on_click=self.do_play_letter, disabled=True)
         self.game_container = ft.Column([
             ft.Container(height=20),
-            ft.Text("Current Fragment:", size=12),
+            ft.Text("Les mots à deviner sont en français uniquement !", size=12),
             self.word_display,
             ft.Container(height=20),
             self.status_display,
@@ -237,7 +237,7 @@ class GameClientApp:
 
         # Chat / Log
         self.chat_list = ft.ListView(expand=True, spacing=5, auto_scroll=True)
-        self.chat_input = ft.TextField(hint_text="Chat...", expand=True, on_submit=self.do_send_chat)
+        self.chat_input = ft.TextField(hint_text="Tchat...", expand=True, on_submit=self.do_send_chat)
         
         self.main_container.controls = [
             ft.Row([self.lbl_room_info, self.leave_btn], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -248,8 +248,8 @@ class GameClientApp:
             ft.Row([self.chat_input, ft.IconButton(ft.Icons.SEND, on_click=self.do_send_chat)]),
             ft.Divider(),
             ft.Row([
-                ft.Text("Private Chat:", size=12),
-                ft.TextField(label="Other Pseudo", width=150, on_submit=lambda e: self.do_p2p_request(e.control.value)),
+                ft.Text("Chat Privé :", size=12),
+                ft.TextField(label="Autre Pseudo", width=150, on_submit=lambda e: self.do_p2p_request(e.control.value)),
                 ft.IconButton(ft.Icons.CONNECT_WITHOUT_CONTACT, on_click=lambda e: self.do_p2p_request(e.control.parent.controls[1].value))
             ])
         ]
@@ -279,7 +279,7 @@ class GameClientApp:
     def do_p2p_request(self, target_pseudo):
         if target_pseudo and target_pseudo != self.current_pseudo:
             self.network.request_p2p(target_pseudo)
-            self.show_info(f"Request sent to {target_pseudo}")
+            self.show_info(f"Demande envoyée à {target_pseudo}")
 
     def handle_game_data(self, data):
         dtype = data.get("type")
@@ -292,9 +292,9 @@ class GameClientApp:
             scores = data.get("scores", {})
             score_txt = "Scores: " + ", ".join([f"{k}: {v}" for k, v in scores.items()])
             
-            status = f"Turn: {active}\n{score_txt}"
+            status = f"Tour : {active}\n{score_txt}"
             if event:
-                self.add_log(f"Game: {event}")
+                self.add_log(f"Jeu : {event}")
             
             self.status_display.value = status
             self.word_display.update()
@@ -319,15 +319,15 @@ class GameClientApp:
             self.show_broadcast_modal(full_msg)
             
         elif dtype == "GAME_OVER":
-            reason = data.get("reason", "Game Over")
-            self.show_info(f"Game Over: {reason}")
+            reason = data.get("reason", "Fin de partie")
+            self.show_info(f"Fin de partie : {reason}")
             # Redirect to lobby after a short delay or immediately
             # We can use a dialog or just switch
             self.do_leave_room(None)
 
     def handle_notify(self, ntype, pseudo):
         # 0=JOIN, 1=LEAVE
-        msg = f"{pseudo} joined." if ntype == 0 else f"{pseudo} left."
+        msg = f"{pseudo} a rejoint." if ntype == 0 else f"{pseudo} est parti."
         self.add_log(msg)
         if ntype == 0:
             if pseudo not in self.players_in_room: self.players_in_room.append(pseudo)
@@ -335,7 +335,7 @@ class GameClientApp:
             if pseudo in self.players_in_room: self.players_in_room.remove(pseudo)
         
         if self.lbl_room_info:
-            self.lbl_room_info.value = f"Room: {len(self.players_in_room)} Players"
+            self.lbl_room_info.value = f"Salle: {len(self.players_in_room)} Joueurs"
             self.lbl_room_info.update()
         
         if hasattr(self, 'leave_btn') and self.leave_btn:
@@ -343,7 +343,7 @@ class GameClientApp:
             self.leave_btn.disabled = is_full
             self.leave_btn.update()
             if is_full:
-                 self.show_info("Room full! Game starting.")
+                 self.show_info("Salle pleine ! Le jeu commence.")
 
     def add_log(self, text):
         if self.chat_list:
@@ -381,11 +381,11 @@ class GameClientApp:
             self.page.update()
             
         self.p2p_confirm_dialog = ft.AlertDialog(
-            title=ft.Text("Private Chat Request"),
-            content=ft.Text(f"{requester} wants to start a private chat with you."),
+            title=ft.Text("Demande de Chat Privé"),
+            content=ft.Text(f"{requester} veut démarrer un chat privé avec vous."),
             actions=[
-                ft.TextButton("Accept", on_click=on_accept),
-                ft.TextButton("Deny", on_click=on_refuse)
+                ft.TextButton("Accepter", on_click=on_accept),
+                ft.TextButton("Refuser", on_click=on_refuse)
             ]
         )
         self.page.overlay.append(self.p2p_confirm_dialog)
@@ -410,16 +410,16 @@ class P2PChatWindow:
         self.me = my_name
         self.dialog = None
         self.chat_list = ft.ListView(expand=True, spacing=5, auto_scroll=True, height=300)
-        self.input = ft.TextField(hint_text="Private message...", expand=True, on_submit=self.send_msg)
+        self.input = ft.TextField(hint_text="Message privé...", expand=True, on_submit=self.send_msg)
 
     def build(self):
         self.dialog = ft.AlertDialog(
-            title=ft.Text(f"Private Chat with {self.peer}"),
+            title=ft.Text(f"Chat Privé avec {self.peer}"),
             content=ft.Column([
                 ft.Container(self.chat_list, border=ft.border.all(1, ft.Colors.GREY), height=300),
                 ft.Row([self.input, ft.IconButton(ft.Icons.SEND, on_click=self.send_msg)])
             ], width=400, height=400),
-            actions=[ft.TextButton("Close", on_click=self.close)]
+            actions=[ft.TextButton("Fermer", on_click=self.close)]
         )
         return self.dialog
 
@@ -458,7 +458,7 @@ class P2PChatWindow:
             except Exception as e:
                 print(f"P2P Read Error: {e}")
                 break
-        self.add_log("Connection closed.", color="red")
+        self.add_log("Connexion fermée.", color="red")
 
     def add_log(self, text, color="white"):
         self.chat_list.controls.append(ft.Text(text, color=color))
